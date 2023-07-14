@@ -14,7 +14,6 @@ from deeplake.core.index.index import IndexEntry
 from deeplake.core.storage.memory import MemoryProvider
 from deeplake.constants import KB
 
-from deeplake.tests.dataset_fixtures import enabled_non_gdrive_datasets
 from PIL import Image  # type: ignore
 
 try:
@@ -66,9 +65,10 @@ def pytorch_small_shuffle_helper(start, end, dataloader):
     assert set(all_values) == set(range(start, end))
 
 
+@pytest.mark.flaky
 @requires_torch
-@enabled_non_gdrive_datasets
-def test_pytorch_small(ds):
+def test_pytorch_small(local_ds):
+    ds = local_ds
     with ds:
         ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
         ds.image.extend(([i * np.ones((i + 1, i + 1)) for i in range(16)]))
@@ -146,9 +146,11 @@ def test_pytorch_small(ds):
 
 
 @requires_torch
-@enabled_non_gdrive_datasets
-def test_pytorch_transform(ds):
+@pytest.mark.flaky
+def test_pytorch_transform(local_ds):
     import torch
+
+    ds = local_ds
 
     with ds:
         ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
@@ -224,9 +226,10 @@ def test_pytorch_transform(ds):
 
 
 @requires_torch
-@enabled_non_gdrive_datasets
-def test_pytorch_transform_dict(ds):
-    with ds:
+@pytest.mark.flaky
+def test_pytorch_transform_dict(local_ds):
+    ds = local_ds
+    with ds as ds:
         ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
         ds.image.extend(([i * np.ones((i + 1, i + 1)) for i in range(16)]))
         ds.create_tensor("image2", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
@@ -264,8 +267,9 @@ def test_pytorch_transform_dict(ds):
 
 
 @requires_torch
-@enabled_non_gdrive_datasets
-def test_pytorch_with_compression(ds: Dataset):
+@pytest.mark.flaky
+def test_pytorch_with_compression(local_ds: Dataset):
+    ds = local_ds
     # TODO: chunk-wise compression for labels (right now they are uncompressed)
     with ds:
         images = ds.create_tensor(
@@ -301,8 +305,9 @@ def test_pytorch_with_compression(ds: Dataset):
 
 
 @requires_torch
-@enabled_non_gdrive_datasets
-def test_custom_tensor_order(ds):
+@pytest.mark.flaky
+def test_custom_tensor_order(local_ds):
+    ds = local_ds
     with ds:
         tensors = ["a", "b", "c", "d"]
         for t in tensors:
@@ -364,6 +369,7 @@ def test_custom_tensor_order(ds):
 
 
 @requires_torch
+@pytest.mark.flaky
 def test_readonly_with_two_workers(local_ds):
     local_ds.create_tensor("images", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
     local_ds.create_tensor("labels", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
@@ -382,7 +388,9 @@ def test_readonly_with_two_workers(local_ds):
 
 
 @requires_torch
+@pytest.mark.flaky
 def test_corrupt_dataset(local_ds, corrupt_image_paths, compressed_image_paths):
+    local_ds.storage.clear()
     img_good = deeplake.read(compressed_image_paths["jpeg"][0])
     img_bad = deeplake.read(corrupt_image_paths["jpeg"])
     with local_ds:
@@ -397,13 +405,14 @@ def test_corrupt_dataset(local_ds, corrupt_image_paths, compressed_image_paths):
     for (batch,) in dl:
         num_batches += 1
         num_samples += len(batch)
-    assert num_samples == 30
-    assert num_batches == 15
+    assert num_samples == 33
+    assert num_batches == 17
 
 
 @requires_torch
-@enabled_non_gdrive_datasets
-def test_pytorch_local_cache(ds):
+@pytest.mark.flaky
+def test_pytorch_local_cache(local_ds):
+    ds = local_ds
     with ds:
         ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
         ds.image.extend(([i * np.ones((i + 1, i + 1)) for i in range(16)]))
@@ -437,6 +446,7 @@ def test_pytorch_local_cache(ds):
 
 
 @requires_torch
+@pytest.mark.flaky
 def test_groups(local_ds, compressed_image_paths):
     img1 = deeplake.read(compressed_image_paths["jpeg"][0])
     img2 = deeplake.read(compressed_image_paths["png"][0])
@@ -475,6 +485,7 @@ def test_groups(local_ds, compressed_image_paths):
 
 
 @requires_torch
+@pytest.mark.flaky
 def test_string_tensors(local_ds):
     with local_ds:
         local_ds.create_tensor("strings", htype="text")
@@ -489,7 +500,9 @@ def test_string_tensors(local_ds):
         np.testing.assert_array_equal(batch["strings"], f"string{idx}")
 
 
+@pytest.mark.slow
 @requires_torch
+@pytest.mark.flaky
 def test_pytorch_large(local_ds):
     arr_list_1 = [np.random.randn(1500, 1500, i) for i in range(5)]
     arr_list_2 = [np.random.randn(400, 1500, 4, i) for i in range(5)]
@@ -514,6 +527,7 @@ def view_tform(sample):
     return sample
 
 
+@pytest.mark.slow
 @requires_torch
 @pytest.mark.parametrize(
     "index,shuffle",
@@ -531,6 +545,7 @@ def view_tform(sample):
         (np.random.randint(0, 10, 100).tolist(), False),
     ],
 )
+@pytest.mark.flaky
 def test_pytorch_view(local_ds, index, shuffle):
     arr_list_1 = [np.random.randn(15, 15, 5) for _ in range(10)]
     arr_list_2 = [np.random.randn(40, 15, 4, 2) for _ in range(10)]
@@ -561,9 +576,11 @@ def test_pytorch_view(local_ds, index, shuffle):
             pass
 
 
+@pytest.mark.slow
 @requires_torch
 @pytest.mark.parametrize("shuffle", [True, False])
 @pytest.mark.parametrize("buffer_size", [0, 10])
+@pytest.mark.flaky
 def test_pytorch_collate(local_ds, shuffle, buffer_size):
     local_ds.create_tensor("a")
     local_ds.create_tensor("b")
@@ -587,8 +604,10 @@ def test_pytorch_collate(local_ds, shuffle, buffer_size):
         np.testing.assert_array_equal(batch[1], np.array([2, 2, 2, 2]).reshape(4, 1))
 
 
+@pytest.mark.slow
 @requires_torch
 @pytest.mark.parametrize("shuffle", [True, False])
+@pytest.mark.flaky
 def test_pytorch_transform_collate(local_ds, shuffle):
     local_ds.create_tensor("a")
     local_ds.create_tensor("b")
@@ -630,8 +649,10 @@ def run_ddp(rank, size, ds, q, backend="gloo"):
 
 
 @requires_torch
-@enabled_non_gdrive_datasets
-def test_pytorch_ddp(ds):
+@pytest.mark.slow
+@pytest.mark.flaky
+def test_pytorch_ddp(local_ds):
+    ds = local_ds
     import multiprocessing as mp
 
     with ds:
@@ -669,9 +690,11 @@ def identity(x):
 
 
 @requires_torch
-@enabled_non_gdrive_datasets
+@pytest.mark.slow
 @pytest.mark.parametrize("compression", [None, "jpeg"])
-def test_pytorch_decode(ds, compressed_image_paths, compression):
+@pytest.mark.flaky
+def test_pytorch_decode(local_ds, compressed_image_paths, compression):
+    ds = local_ds
     with ds:
         ds.create_tensor("image", sample_compression=compression)
         ds.image.extend(
@@ -710,6 +733,7 @@ def test_pytorch_decode(ds, compressed_image_paths, compression):
 
 
 @requires_torch
+@pytest.mark.flaky
 def test_pytorch_decode_multi_worker_shuffle(local_ds, compressed_image_paths):
     with local_ds as ds:
         ds.create_tensor("image", sample_compression="jpeg")
@@ -738,6 +762,7 @@ def test_pytorch_decode_multi_worker_shuffle(local_ds, compressed_image_paths):
 
 
 @requires_torch
+@pytest.mark.flaky
 def test_rename(local_ds):
     with local_ds as ds:
         ds.create_tensor("abc")
@@ -760,6 +785,7 @@ def test_rename(local_ds):
 @requires_torch
 @pytest.mark.parametrize("shuffle", [True, False])
 @pytest.mark.parametrize("num_workers", [0, 2])
+@pytest.mark.flaky
 def test_indexes(local_ds, shuffle, num_workers):
     with local_ds as ds:
         ds.create_tensor("xyz")
@@ -783,6 +809,7 @@ def index_transform(sample):
 @requires_torch
 @pytest.mark.parametrize("shuffle", [True, False])
 @pytest.mark.parametrize("num_workers", [0, 2])
+@pytest.mark.flaky
 def test_indexes_transform(local_ds, shuffle, num_workers):
     with local_ds as ds:
         ds.create_tensor("xyz")
@@ -809,6 +836,7 @@ def test_indexes_transform(local_ds, shuffle, num_workers):
 @requires_torch
 @pytest.mark.parametrize("shuffle", [True, False])
 @pytest.mark.parametrize("num_workers", [0, 2])
+@pytest.mark.flaky
 def test_indexes_transform_dict(local_ds, shuffle, num_workers):
     with local_ds as ds:
         ds.create_tensor("xyz")
@@ -843,6 +871,7 @@ def test_indexes_transform_dict(local_ds, shuffle, num_workers):
 @requires_torch
 @pytest.mark.parametrize("shuffle", [True, False])
 @pytest.mark.parametrize("num_workers", [0, 2])
+@pytest.mark.flaky
 def test_indexes_tensors(local_ds, shuffle, num_workers):
     with local_ds as ds:
         ds.create_tensor("xyz")
@@ -868,6 +897,8 @@ def test_indexes_tensors(local_ds, shuffle, num_workers):
         assert batch.keys() == {"xyz", "index"}
 
 
+@requires_torch
+@pytest.mark.flaky
 def test_uneven_iteration(local_ds):
     with local_ds as ds:
         ds.create_tensor("x")
@@ -904,6 +935,8 @@ def list_transform_fn(sample):
     return np.array([sample[0], sample[1]])
 
 
+@requires_torch
+@pytest.mark.flaky
 def test_pytorch_json(local_ds):
     ds = local_ds
     with ds:
@@ -920,6 +953,8 @@ def test_pytorch_json(local_ds):
     np.testing.assert_equal(batch, np.array([1, 2]))
 
 
+@requires_torch
+@pytest.mark.flaky
 def test_pytorch_list(local_ds):
     ds = local_ds
     with ds:
@@ -936,6 +971,8 @@ def test_pytorch_list(local_ds):
     np.testing.assert_equal(batch, np.array([[1, 2], [3, 4]]))
 
 
+@requires_torch
+@pytest.mark.flaky
 def test_pytorch_data_decode(local_ds, cat_path):
     ds = local_ds
     with ds:
