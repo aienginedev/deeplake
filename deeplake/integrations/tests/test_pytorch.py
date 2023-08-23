@@ -696,6 +696,7 @@ def identity(x):
 
 @requires_torch
 @pytest.mark.slow
+@enabled_non_gdrive_datasets
 @pytest.mark.parametrize("compression", [None, "jpeg"])
 @pytest.mark.flaky
 def test_pytorch_decode(ds, compressed_image_paths, compression):
