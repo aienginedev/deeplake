@@ -14,6 +14,7 @@ from deeplake.core.index.index import IndexEntry
 from deeplake.core.storage.memory import MemoryProvider
 from deeplake.constants import KB
 
+from deeplake.tests.dataset_fixtures import enabled_non_gdrive_datasets
 from PIL import Image  # type: ignore
 
 try:
@@ -65,10 +66,11 @@ def pytorch_small_shuffle_helper(start, end, dataloader):
     assert set(all_values) == set(range(start, end))
 
 
+@pytest.mark.slow
 @pytest.mark.flaky
+@enabled_non_gdrive_datasets
 @requires_torch
-def test_pytorch_small(local_ds):
-    ds = local_ds
+def test_pytorch_small(ds):
     with ds:
         ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
         ds.image.extend(([i * np.ones((i + 1, i + 1)) for i in range(16)]))
@@ -146,11 +148,11 @@ def test_pytorch_small(local_ds):
 
 
 @requires_torch
+@enabled_non_gdrive_datasets
 @pytest.mark.flaky
-def test_pytorch_transform(local_ds):
+@pytest.mark.slow
+def test_pytorch_transform(ds):
     import torch
-
-    ds = local_ds
 
     with ds:
         ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
@@ -227,9 +229,10 @@ def test_pytorch_transform(local_ds):
 
 @requires_torch
 @pytest.mark.flaky
-def test_pytorch_transform_dict(local_ds):
-    ds = local_ds
-    with ds as ds:
+@pytest.mark.slow
+@enabled_non_gdrive_datasets
+def test_pytorch_transform_dict(ds):
+    with ds:
         ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
         ds.image.extend(([i * np.ones((i + 1, i + 1)) for i in range(16)]))
         ds.create_tensor("image2", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
@@ -268,8 +271,9 @@ def test_pytorch_transform_dict(local_ds):
 
 @requires_torch
 @pytest.mark.flaky
-def test_pytorch_with_compression(local_ds: Dataset):
-    ds = local_ds
+@enabled_non_gdrive_datasets
+@pytest.mark.slow
+def test_pytorch_with_compression(ds: Dataset):
     # TODO: chunk-wise compression for labels (right now they are uncompressed)
     with ds:
         images = ds.create_tensor(
@@ -305,9 +309,9 @@ def test_pytorch_with_compression(local_ds: Dataset):
 
 
 @requires_torch
+@enabled_non_gdrive_datasets
 @pytest.mark.flaky
-def test_custom_tensor_order(local_ds):
-    ds = local_ds
+def test_custom_tensor_order(ds):
     with ds:
         tensors = ["a", "b", "c", "d"]
         for t in tensors:
@@ -411,8 +415,9 @@ def test_corrupt_dataset(local_ds, corrupt_image_paths, compressed_image_paths):
 
 @requires_torch
 @pytest.mark.flaky
-def test_pytorch_local_cache(local_ds):
-    ds = local_ds
+@pytest.mark.slow
+@enabled_non_gdrive_datasets
+def test_pytorch_local_cache(ds):
     with ds:
         ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
         ds.image.extend(([i * np.ones((i + 1, i + 1)) for i in range(16)]))
@@ -651,8 +656,8 @@ def run_ddp(rank, size, ds, q, backend="gloo"):
 @requires_torch
 @pytest.mark.slow
 @pytest.mark.flaky
-def test_pytorch_ddp(local_ds):
-    ds = local_ds
+@enabled_non_gdrive_datasets
+def test_pytorch_ddp(ds):
     import multiprocessing as mp
 
     with ds:
@@ -693,8 +698,7 @@ def identity(x):
 @pytest.mark.slow
 @pytest.mark.parametrize("compression", [None, "jpeg"])
 @pytest.mark.flaky
-def test_pytorch_decode(local_ds, compressed_image_paths, compression):
-    ds = local_ds
+def test_pytorch_decode(ds, compressed_image_paths, compression):
     with ds:
         ds.create_tensor("image", sample_compression=compression)
         ds.image.extend(
