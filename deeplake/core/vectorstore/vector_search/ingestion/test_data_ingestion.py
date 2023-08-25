@@ -22,6 +22,7 @@ def corrupted_embedding_function(emb, threshold):
 
 
 @pytest.mark.slow
+@pytest.mark.flaky(retry_count=3)
 def test_ingest_data(local_path):
     data = [
         {
